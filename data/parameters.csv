@@ -1,0 +1,18 @@
+﻿Label,Text,Round,Pref,Suf,Mult,Value,SE,CIL,CIU,Dist,Source,Link,Comment
+symp_unadj_r,λ: Severe symptom events (per 100 patient-months),2,,,100,0.1409,0.004715633,,,gamma,PROMPT-Care trial,,SE = sqrt(event count)/person-time
+hosp_r,λ: Hospital Events (per 100 patient-months),2,,,100,0.0566,0.001307999,,,gamma,PROMPT-Care trial,,SE = sqrt(event count)/person-time
+amb_r,λ: Ambulance (round trips per 100 patient-months),2,,,100,0.0183,0.005516249,,,gamma,Sentinel trial,,SE = sqrt(event count)/person-time
+hosp_hr,Hazard Ratio: Hospital Events,2,,,1,0.87,0.06,0.77,0.98,beta,Sentinel trial,,cannot exceed 1 in the model
+death_hr,Hazard Ratio: Death,2,,,1,0.32,0.38,0.15,0.67,lognormal,Sentinel trial,,
+amb_hr,Hazard Ratio: Ambulance (round trips),2,,,1,0.17,,0.04,0.78,beta,Sentinel trial,,0.77 breaks the beta distribution
+h_u,Health Utility (Usual Care),2,,,1,0.8,0.01,0.77,0.82,beta,STAR trial,,
+d_u,ePROM-monitoring health utility gain,3,,,1,0.057,0.015,0.028,0.086,gamma,STAR trial,,
+ed_c,Emergency care (episode),0,£,,1,280,,,,gamma,UK National Health Service,,2024/25 National Cost Collection data (GBP)
+amb_c,Ambulance cost,0,£,,1,272,,,,gamma,UK National Health Service,,2024/25 National Cost Collection data (GBP)
+discount,Discount rate,1,,%,100,0.035,0,0,0.05,none,National Institute for Health and Care Excellence (UK),,Annualised discount rate (NICE)
+eprom_m_c,ePROM monitoring cost (per patient-month),0,£,,1,97,,3,217,gamma,CAPRI trial,,CAPRI monthly cost
+obs_padh,Patient adherence (reference),0,,%,100,0.66,0.023,,,beta,PROMPT-Care trial,,"Girgis, SE calculated using: SE = SQRT(p(1-p)/N) where N=407"
+sim_padh,Patient adherence (simulated),0,,%,100,1,,,,beta,Assumption,,Placeholder for user entry
+obs_review,HCP engagement: alerts reviewed (reference),0,,%,100,0.44,0.017,,,beta,PROMPT-Care trial,,"Girgis, SE calculated using: SE = SQRT(p(1-p)/N) where N=877"
+sim_review,HCP engagement: alerts reviewed (simulated),0,,%,100,1,,,,beta,Assumption,,Placeholder for user entry
+adh_effect,Alert missingness effect,0,,%,100,0.5,,0,1,beta,Assumption,,

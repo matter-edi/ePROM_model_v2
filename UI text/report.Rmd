@@ -1,0 +1,210 @@
+---
+title: "Cost-Effectiveness of Electronic Patient-Reported Outcome Monitoring: A Health Economic Model"
+output: 
+  word_document:
+    reference_docx: template.docx
+params:
+  inp: NA
+  bc: NA
+  pat: NA
+  seed: NA
+  km: NA
+  evlog: NA
+  cep: NA
+  ceac: NA
+  owsa: NA
+---
+
+```{r include=FALSE}
+library(flextable)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+```{r  echo=FALSE, results='asis'}
+cat(paste("Date:", Sys.Date()))
+```
+
+# Introduction
+
+## Background
+
+This document contains an automated report of a health economic decision analysis model intended to estimate the **cost-effectiveness** of complex digital interventions for monitoring electronic Patient-Reported Outcome Measures (**ePROMs**) in cancer care. This model's structure and parameters were sourced from a Systematic Literature Review (**SLR**) of papers related to the impact of ePROM-integrated interventions on:
+
+-   Health Resource Use (**HRU**)
+
+-   Intervention-related healthcare costs
+
+-   Generic health outcomes, usually measured in Quality-Adjusted Life Years ([QALYs](https://www.yhec.co.uk/glossary-term/quality-adjusted-life-year-qaly/ "What are QALYs and why are they important in health economics? Click the link to find out more."))
+
+**SLR preprint:** <https://preprints.jmir.org/preprint/100505>
+
+## What is ePROM monitoring?
+
+ePROM monitoring interventions can be considered [complex](https://www.bmj.com/content/374/bmj.n2061 "UK Medical Research Council's definition of complex interventions.") due to the number of components and stakeholders involved in their implementation and delivery. While there are many types of ePROM monitoring strategies, *Figure 1* shows a simplified version of how they can work.
+
+#### Figure 1: ePROM logic model
+
+![](images/clipboard-3007432505.png)
+
+## Context
+
+Complex digital interventions that integrate ePROMs into clinical practice in cancer have the potential to improve quality of life, increase survival, and reduce health resource use and costs. Such systems can help oncology patients self-manage chemotherapy symptoms, reduce clinicians' workloads through automated decision support, and resolve problems earlier. However, more research a needed on the cost-effectiveness of such interventions.
+
+In our SLR, we identified some evidence that ePROM-integrated interventions can be cost-effective in cancer care, but the evidence base remains limited. The papers identified in our review show that ePROM monitoring:
+
+1.  Can **reduce** rates of Emergency Department (**ED**) visits ([Girgis et al. 2020](https://www.jmir.org/2020/10/e19685/ "Click the link to view the trial paper.")).
+
+2.  Can **improve survival** ([Denis et al. 2017](https://doi.org/10.1093/jnci/djx029 "Click the link to view the trial paper.")).
+
+3.  Can help patients travel more independently and require **fewer ambulance trips** ([Lizée et al. 2019](#0 "Click the link to view the trial paper.")).
+
+4.  Likely has **no impact** on the frequency of **outpatient** **appointments** (*e.g., in-clinic oncology consultations*).
+
+## Purpose of health economic modelling
+
+The health economic model aims to answer the following question:
+
+*Is real-time, remote ePROM monitoring a **cost-effective** intervention?*
+
+In other words, could the resources needed to monitor and respond to ePROMs (e.g., *healthcare budget, clinicians' time & effort, hospital resources*, etc.) do more good for patients & the public elsewhere in the health system?
+
+The model simulates a simplified clinical pathway in two different realities:
+
+1.  A reality in which ePROMs are **not monitored** (usual care).
+
+2.  An alternate reality in which ePROMs **are monitored** and responded to by clinical staff.
+
+The model compares the healthcare costs incurred by the health system and the health outcomes (QALYs) accrued by patients in each reality to determine **which strategy is preferable**.
+
+## Key terminology
+
+Click on the definition links of the highlighted terms in the descriptions below to help understand the health-economic model:
+
+-   The type of cost-effectiveness analysis used in this model is called [**cost-utility**](https://www.yhec.co.uk/glossary-term/cost-utility-analysis/ "Definition of cost-utility.").
+
+-   Simulated patients experience various events over time in a [**patient-level**](https://www.yhec.co.uk/glossary-term/patient-level-simulation-model/ "Definition of a patient-level simulation."), [**discrete-event**](https://www.yhec.co.uk/glossary-term/discrete-event-simulation/ "Definition of a discrete-event simulation.") model.
+
+-   The model does not have a specified [**time horizon**](https://www.yhec.co.uk/glossary-term/time-horizon/ "Definition of a time horizon."). The user can rerun the simulation and specify different lengths on each run.
+
+-   The model includes the following types of model analyses:
+
+    1.  [**Base-case**](https://www.yhec.co.uk/glossary-term/time-horizon/ "Definition of a base case analysis."), using mean input parameters & default assumptions.
+
+    2.  [**Probabilistic sensitivity**](https://www.yhec.co.uk/glossary-term/probabilistic-stochastic-sensitivity-analysis/ "Definition of a probabilistic sensitivity analysis.") (**PSA**) measures the uncertainty of results.
+
+    3.  [**One-way sensitivity**](https://www.yhec.co.uk/glossary-term/univariate-one-way-sensitivity-analysis/ "Definition of an OWSA.") (**OWSA**) shows which inputs most affect model results.
+
+    4.  Scenario analyses: the user can edit core model assumptions and compare results.
+
+The slide deck below shows a flowchart of the simulation diagram. To keep the model simple, we focus only on processes that are likely to **differ** between treatment strategies (e.g., *ED visits*, *ambulance use*) and ignore any outcomes that are likely to be the same (e.g., *outpatient appointments*).
+
+## Model Structure
+
+The simulation tracks only 3 event types:
+
+1.  Symptom event
+2.  ED visit + ambulance round-trip
+3.  Death
+
+The *symptom event* can refer to any combination of symptoms (e.g., *pain*, *nausea*), as we currently do not have sufficient data to model different symptom types separately. The death rate for each patient is a function of their age band, cancer type, and prior survival, based on an analysis of England's National Cancer Registration and Analysis Service data ([Wong et al. 2019](https://doi.org/10.1038/s41416-019-0597-0 "Source of data for the survival simulation.")). *Figure 2* outlines the model's simulation structure.
+
+#### Figure 2: Model simulation flowchart
+
+![](images/clipboard-367810112.png)
+
+# Model Results
+
+## Model Inputs
+
+*Figure 3* presents a snapshot of simulated patient characteristics at the start of the simulation. *Table 1* presents the input parameters for the current model version as specified in the model **Settings**.
+
+#### Figure 3: Simulated Patients at Baseline
+
+```{r echo = FALSE, fig.width = 10, fig.height = 6, dpi = 300}
+print(params$pat)
+```
+
+#### Table 1: Model input parameters
+
+```{r echo=FALSE}
+flextable(params$inp) |> fontsize(size = 8, part = "all") |> autofit() |> 
+  fit_to_width(7)
+```
+
+```{r echo=FALSE, results='asis'}
+cat(params$seed)
+```
+
+## Base Case Results
+
+The main **base case** results are presented in *Table 2*. A low Incremental Cost-Effectiveness Ratio ([ICER](https://www.yhec.co.uk/glossary-term/incremental-cost-effectiveness-ratio-icer/ "Definition of an ICER.")) below the Willingness-to-Pay ([WTP](https://www.yhec.co.uk/glossary-term/cost-effectiveness-threshold/ "Definition of cost-effectiveness thresholds.")) threshold and a positive and Incremental Net Monetary Benefit ([INMB](https://www.yhec.co.uk/glossary-term/net-monetary-benefit/ "Definition of net monetary benefit.")) indicate that ePROM monitoring is a cost-effective strategy relative to usual care. Conversely, ICER\>WTP and INMB\<0 indicate that ePROM monitoring is *not* a cost-effective strategy. *Figures* *4* and *5* present the survival analysis and cumulative event curves (per population in each strategy), respectively.
+
+The base case results **do not** include any measures of uncertainty (i.e., *How confident are we that our base case results are correct?*). These are covered by the Probabilistic and One-Way Sensitivity Analysis sections.
+
+#### Table 1: Base case cost-effectiveness results
+
+```{r echo = F, ft.align="left"}
+params$bc |> flextable() |> autofit()
+```
+
+<small>Δ = difference (ePROM - Usual Care); ICER = Incremental Cost-Effectiveness Ratio; INMB = Incremental Net Monetary Benefit; WTP = Willingness-to-Pay.</small>
+
+#### Figure 4: Survival comparison between strategies
+
+```{r echo=FALSE, fig.width = 10, fig.height = 6, dpi = 300}
+print(params$km)
+```
+
+#### Figure 5: Cumulative simulated events over time
+
+```{r echo=FALSE, fig.width = 10, fig.height = 6, dpi = 300}
+print(params$evlog)
+```
+
+<small>Note: the Y-axis contains a logarithmic (base 2) scale.</small>
+
+## Probabilistic Sensitivity Analysis
+
+*Figure 6* presents the Cost-Effectiveness Plane ([CEP](https://www.yhec.co.uk/glossary-term/cost-effectiveness-plane/ "Cost-effectiveness plane definition.")). Each dot represents a result for a single random model iteration (differences in costs & QALYs, ePROM - Usual Care). *Figure 7* plots the percentages of model iterations falling below a given WTP threshold to determine the *probability that ePROMs are a cost-effective strategy* at any given WTP level; this is referred to as a Cost-Effectiveness Acceptability Curve ([CEAC](https://www.yhec.co.uk/glossary-term/cost-effectiveness-acceptability-curve/ "Definition of a CEAC.")).
+
+#### Figure 6: Cost-Effectiveness Plane
+
+```{r echo=FALSE, fig.width = 10, fig.height = 6, dpi = 300}
+print(params$cep)
+```
+
+<small>Δ = difference (ePROM - Usual Care); K = 1,000; shaded area = WTP threshold range.</small>
+
+#### Figure 7: Cost-Effectiveness Acceptability Curve
+
+```{r echo=FALSE, fig.width = 10, fig.height = 6, dpi = 300}
+print(params$ceac)
+```
+
+<small>Shaded area = WTP threshold range.</small>
+
+### One-Way Sensitivity Analysis
+
+*Figure 6* plots a tornado diagram showing the impact of changing a single input parameter to its lower or upper bound while holding all other parameters constant. The parameters are listed in descending order by the impact on the model's Incremental Net Benefit (INMB) result.
+
+#### Figure 6: One-Way Sensitivity Tornado Diagram
+
+```{r echo=FALSE, fig.width = 10, fig.height = 6, dpi = 300}
+params$owsa()
+```
+
+### References
+
+1.  Basch, Ethan, Allison M. Deal, Mark G. Kris, et al. 2016. ‘Symptom Monitoring With Patient-Reported Outcomes During Routine Cancer Treatment: A Randomized Controlled Trial’. *Journal of Clinical Oncology: Official Journal of the American Society of Clinical Oncology* 34 (6): 557–65. <https://doi.org/10.1200/JCO.2015.63.0830.>
+
+2.  Denis, Fabrice, Claire Lethrosne, Nicolas Pourel, et al. 2017. ‘Randomized Trial Comparing a Web-Mediated Follow-up With Routine Surveillance in Lung Cancer Patients’. *Journal of the National Cancer Institute* 109 (9). <https://doi.org/10.1093/jnci/djx029.>
+
+3.  Girgis, Afaf, Ivana Durcinoska, Anthony Arnold, et al. 2020. ‘Web-Based Patient-Reported Outcome Measures for Personalized Treatment and Care (PROMPT-Care): Multicenter Pragmatic Nonrandomized Trial’. *Journal of Medical Internet Research* 22 (10): e19685. <https://doi.org/10.2196/19685.>
+
+4.  JMIR Preprints. n.d. ‘Cost-Effectiveness of Electronic Patient-Reported Outcome Measure Interventions in Cancer: A Systematic Review and Parameter Extraction for Economic Modelling’. Accessed 29 May 2026. <https://preprints.jmir.org/preprint/100505.>
+
+5.  Lizán, Luís, Lucía Pérez-Carbonell, and Marta Comellas. 2021. ‘Additional Value of Patient-Reported Symptom Monitoring in Cancer Care: A Systematic Review of the Literature’. *Cancers* 13 (18): 4615. <https://doi.org/10.3390/cancers13184615.>
+
+6.  Minvielle, Etienne, Henri Leleu, Marc Masseti, et al. 2025. ‘A Budget Impact Analysis of a Digital Monitoring Solution in Patients Treated with Oral Anticancer Agents: A Medico-Economic Analysis of the Randomized Phase 3 CAPRI Trial’. *The European Journal of Health Economics* 26 (2): 267–73. <https://doi.org/10.1007/s10198-024-01702-1.>
+
+7.  NHS England. 2024. *NHS England » 2023/24 National Cost Collection Data Publication*. November 27. <https://www.england.nhs.uk/publication/2023-24-national-cost-collection-data-publication/.>

@@ -812,23 +812,27 @@ sim_f <- function(
   owsa_l_dt <- copy(sum_dt)[owsa_v, .SD, .SDcols = c("Run", out_v)][, `:=`(
     INMB = base_wtp * QALYs - Costs,
     Bound = c("Lower", "Upper")[2 - str_detect(Run, "CIl_")],
-    Var_l = str_replace_all(Run, c("CIl_" = "", "CIu_" = "")),
-    Variable = lpar_df[str_replace_all(Run, c("CIl_" = "", "CIu_" = "")),]$Text
+    Var_l = str_replace_all(Run, c("CIl_" = "", "CIu_" = ""))
+    # Variable = lpar_df[str_replace_all(Run, c("CIl_" = "", "CIu_" = "")),]$Text
   )][Var_l %in% names(!excl_owsa_v)[!excl_owsa_v],][
     , `:=`(Costs = NULL, QALYs = NULL, Run = NULL)]
   
+  owsa_w_dt <- dcast( # long to wide format
+    owsa_l_dt, # OWSA uses base WTP to calculate INMB for each run
+    Var_l ~ Bound, value.var = "INMB"
+  )
+  
   owsa_dt <- cbind(
-    dcast( # OWSA uses base WTP to calculate INMB for each run
-      owsa_l_dt,
-      Variable ~ Bound, value.var = "INMB"
-    )[lpar_df$Text,],
-    with(lpar_df, paste.matrix( # Add variable values in each scenario
-      Pref, round(Mult * par_m[,c("CIl", "Mu", "CIu")], Round), Suf, sep = ""
+    data.table("Variable" = with(owsa_w_dt, lpar_df[Var_l, "Text"])),
+    owsa_w_dt,
+    with(lpar_df[owsa_w_dt$Var_l,], paste.matrix( # Add variable values in each scenario
+      Pref, round(Mult * par_m[owsa_w_dt$Var_l, c("CIl", "Mu", "CIu")], Round), 
+      Suf, sep = ""
     )) %>% as.data.frame() %>% setDT() %>% setnames(c("CIl", "Mu", "CIu"))
   )[, `:=`(
     Base = with(sum_dt["Mu"], base_wtp * QALYs - Costs),
     Diff = abs(Upper - Lower)
-  )] # [!excl_owsa_v,]
+  )] # [!(Variableexcl_owsa_v),]
   
   # CHOOSE 5 top rows for tornado diagram
   owsa_dt <- setorder(owsa_dt, -Diff)[1:5,]
@@ -962,7 +966,6 @@ sim_f <- function(
     "base_wtp" = base_wtp,
     "wtprange" = wtprange_v
 
-    
   ))
   
 }
@@ -1003,7 +1006,7 @@ plotpat_f <- function(pat_data){
     labs(x = "Counts", title = paste( 
       "Simulated Patients, N=", 
       length(pat_dt$Site), sep =""))
-  pat_p <- ggplotly(pat_p, tooltip = "text")
+  # pat_p <- ggplotly(pat_p, tooltip = "text")
   
   return(pat_p) # ggplotly(pat_p, tooltip = "text")
 }
@@ -1070,10 +1073,9 @@ cep_f <- function(
       # bg.color = "white", 
       aes(x = x, y = y, label = Txt, text = Txt2))
   
-  psa_plotly <- ggplotly(psa_p, tooltip = "text")
+  # psa_plotly <- ggplotly(psa_p, tooltip = "text")
   
-  
-  return(psa_plotly) # ggplotly(psa_p, tooltip = "text")
+  return(psa_p) # ggplotly(psa_p, tooltip = "text")
   
 }
 
@@ -1187,7 +1189,7 @@ owsa_f <- function(owsaplot_dt, base_wtp){
   
   base_inmb <- owsaplot_dt$Base[1]
   
-  owsal_dt <- copy(owsaplot_dt)[, y := 5:1][, Diff := NULL][
+  owsal_dt <- copy(owsaplot_dt)[, y := 5:1][, Diff := NULL][, Var_l := NULL][
     , Variable := factor(Variable, levels = rev(Variable))] %>% setnames(
     c("Lower", "Upper", "CIl", "Mu", "CIu", "Base"), c(
       "INMB_Lower", "INMB_Upper", "Input_Lower", 
@@ -1390,10 +1392,10 @@ ui <- {page_navbar(
             card(
               fluidRow(
                 column(
-                  width = 6,
+                  width = 4,
                   tableOutput("res_t") %>% withSpinner(color = pal_m[1, 2])),
                 column(
-                  width = 6,
+                  width = 8,
                   tableOutput("res2_t") %>% withSpinner(color = pal_m[1, 2]))
               )
             ),
@@ -1438,101 +1440,206 @@ ui <- {page_navbar(
 
 server <- function(input, output, session) {
   
-  ### EXTRACT PARAMETERS -------------------------------------------------------
+  # EXTRACT PARAMETERS ---------------------------------------------------------
   
   get_input_f <- reactive(c(input_f(input)))
   
-  # REACTIVES ------------------------------------------------------------------
-  model_res <- reactiveVal(NULL)
-  running <- reactiveVal(FALSE)
-  par_t <- reactiveVal(NULL) # input table placeholder
-  seed <- reactiveVal(NULL)
+  # REACTIVES `_r`--------------------------------------------------------------
   
+  # MODEL RESULTS
+  model_r <- reactiveVal(NULL)
+  # running <- reactiveVal(FALSE)
+  
+  # INDIVIDUAL ITEMS
+  pat_r <- reactiveVal(NULL) # Patient plot breakdown
+  seed_r <- reactiveVal(NULL)
+  par_r <- reactiveVal(NULL) # input table placeholder
+  bc1_r <- reactiveVal(NULL) # Costs/QALY table
+  bc2_r <- reactiveVal(NULL) # ICER/INMB table
+  ev_r <- reactiveVal(NULL) # Event count plot
+  cep_r <- reactiveVal(NULL) # CEP
+  wtp_r <- reactiveVal(NULL) # WTP
+  owsa_r <- reactiveVal(NULL) # OWSA
+  
+  # NAVIGATION & FUNCTIONALITY -------------------------------------------------
+  
+  # NAVIGATE TO MODEL INTERFACE
+  observeEvent(input$enter_model, nav_select("MainPage", "Model Engine"))
+  
+  observe({ # ENSURE USER CANNOT SELECT 0 CANCER SITES
+    selected_v <- input$sites_v
+    if(length(selected_v)==0) {
+      showNotification(
+        "You must select at least 1 option.", type = "error", duration = 5)
+      updateCheckboxGroupInput(session, "sites_v", selected = 1:4)
+    }
+  })
+  
+  observe({ # ENSURE USER CANNOT SELECT 0 CANCER SITES
+    selected_v <- input$survcond_v
+    if(length(selected_v)==0) {
+      showNotification(
+        "You must select at least 1 option.", type = "error", duration = 5)
+      updateCheckboxGroupInput(session, "survcond_v", selected = 1:3)
+    }
+  })
+
   # RUN MODEL ------------------------------------------------------------------
   observeEvent(input$run,{
+    
+    # RETRIEVE USER's INPUT PARAMETERS
     par_l <- get_input_f()
     par_l$pb_shiny <- T
-    # print(par_l)
-    model_res(do.call(sim_f, par_l)) # debug
-    seed(paste("Seed ID:", input$seed_n)) # save seed
-    debug_l <<- model_res()
-    print(model_res())
+    
+    # RUN MODEL 
+    results_l <- do.call(sim_f, par_l)
+    model_r(results_l) 
+    #debug_l <<- model_r() # debug
+    #print(model_r()) # debug
+    
+    # SAVE OUTPUTS IN REACTIVE VARIABLES
+    
+    # Inputs
+    pat_r(with(results_l, plotpat_f(patients))) # patient population plot
+    seed_r(paste("Seed ID:", input$seed_n)) # save seed
+    
+    # Input Parameter table
+    par_dt <- model_r()[["parameters"]]
+    colnames(par_dt) <- c( # The model function scrambles column names without this
+      "Variable", "Distribution", "Mean ± SE", "Bound", "Source"
+    )
+    par_r(par_dt) 
+    
+    # Base case
+    bc1_r(model_r()[["costs_qalys"]]) # Costs & QALYs (base case)
+    bc2_r(model_r()[["decision"]]) # ICER & INMB table
+    ev_r(with(model_r(), eventplot_f(events, F))) # event plot (log scale)
+    
+    # PSA
+    wtp_r(with(model_r(), wtplot_f(wtp, wtprange))) # WTP plot
+    cep_r(with(model_r(), cep_f(psa, wtprange))) # CEP
+    
+    # OWSA
+    owsa_r(with(model_r(), owsa_f(owsa, base_wtp)))
+    
+
   }, ignoreNULL=F)
   
   # OUTPUTS --------------------------------------------------------------------
   
-  # INPUTS
+  # INPUT SUMMARY
 
   output$pat_p <- renderPlotly({
-    req(model_res())
-    with(model_res(), plotpat_f(patients))
+    req(model_r())
+    ggplotly(pat_r(), tooltip = "text") # render Plotly (interactive)
   })
   
   output$par_t <- renderTable({
-    req(model_res())
-    par_t <- model_res()[["parameters"]]
-    colnames(par_t) <- c(
-      "Variable", "Distribution", "Mean ± SE", "Bound", "Source"
-    )
-    par_t
+    req(model_r())
+    par_r()
   }, striped = T)
   
   output$seed <- renderText({
-    req(model_res())
-    seed()
+    req(model_r())
+    seed_r()
   })
   
-  # BASE CASE
+  # BASE CASE RESULTS
   
   output$res_t <- renderTable({
-    req(model_res())
-    model_res()[["costs_qalys"]]
+    req(model_r())
+    bc1_r()
   }, striped = T)
   
   output$res2_t <- renderTable({
-    req(model_res())
-    model_res()[["decision"]]
+    req(model_r())
+    bc2_r()
   }, striped = T)
   
+  # EVENTS 
+  
   output$ev_p <- renderPlot({ # One-Way Sensitivity Tornado
-    #print(model_res()[c("owsa", "base_wtp")])
-    req(model_res())
-    with(model_res(), eventplot_f(events, T))
-    # do.call(eventplot_f,  model_res()[c("events", F)])
+    #print(model_r()[c("owsa", "base_wtp")])
+    req(model_r())
+    with(model_r(), eventplot_f(events, T))
+  })
+  
+  output$log_p <- renderPlot({ # One-Way Sensitivity Tornado
+    #print(model_r()[c("owsa", "base_wtp")])
+    req(model_r())
+    ev_r()
   })
   
   
   # PSA
   
   output$CEP <- renderPlotly({
-    req(model_res())
-    with(model_res(), cep_f(psa, wtprange))
-  })
-  
-  output$OWSA <- renderPlot({ # One-Way Sensitivity Tornado
-    # print(model_res())
-    req(model_res())
-    with(model_res(), owsa_f(owsa, base_wtp))
-    
-  })
-  
-  
-  
-  output$log_p <- renderPlot({ # One-Way Sensitivity Tornado
-    #print(model_res()[c("owsa", "base_wtp")])
-    req(model_res())
-    with(model_res(), eventplot_f(events, F))
-    # do.call(eventplot_f,  model_res()[c("events", F)])
+    req(model_r())
+    ggplotly(cep_r(), tooltip = "text")
   })
   
   output$WTP <- renderPlot({ # One-Way Sensitivity Tornado
-    #print(model_res()[c("owsa", "base_wtp")])
-    req(model_res())
-    with(model_res(), wtplot_f(wtp, wtprange))
-    # do.call(eventplot_f,  model_res()[c("events", F)])
+    req(model_r())
+    wtp_r()
   })
   
+  # OWSA
   
+  output$OWSA <- renderPlot({ # One-Way Sensitivity Tornado
+    # print(model_r())
+    req(model_r())
+    owsa_r()
+  })
+  
+ 
+  
+  # REPORT ---------------------------------------------------------------------
+
+  output$GenReport <- downloadHandler(
+
+    filename = function() {paste0("ePROM-model-", Sys.Date(), ".docx")},
+
+    content = function(file) {
+
+      showPageSpinner(color = pal_m[1,4], background = alpha("white", 0.4))
+      showNotification(
+        "Generating report...", type = "message", duration = NULL,
+        id = "report_gen"
+      )
+
+      on.exit(removeNotification("report_gen"),add = TRUE)
+
+      tempReport <- file.path(tempdir(), "ePROM-model-.Rmd")
+      file.copy("ePROM-model-.Rmd", tempReport, overwrite = TRUE)
+
+      params <- list(
+        "inp" = par_r(),
+        "bc1" = bc1_r(),
+        "bc2" = bc2_r(),
+        "pat" = pat_r(),
+        "seed" = paste("Random seed value used to generate results:", seed_r()),
+        "evlog" = ev_r(),
+        "cep" = cep_r(),
+        "wtp" = wtp_r(),
+        "owsa" = owsa_r()
+      )
+      
+      print(params)
+
+      rmarkdown::render(
+        "UI text/report.Rmd",
+        output_file = file,
+        params = params,
+        envir = new.env(parent = globalenv())
+      )
+
+      showNotification(
+        "Report ready for download.", type = "message", duration = 3
+      )
+      hidePageSpinner()
+    }
+
+  )
 }
 
 # CREATE APP ===================================================================
@@ -1547,8 +1654,8 @@ shinyApp(ui = ui, server = server)
 
 
 # with(test_l, eventplot_f(events, F))
-# 
-# 
+#
+#
 # seed_n <-  123 # random seed
 # psa_n <-  10 # PSA samples
 # th_n <-  3 * 12 # time horizon (months)

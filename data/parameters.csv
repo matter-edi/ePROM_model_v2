@@ -2,7 +2,7 @@
 symp_unadj_r,λ: Severe symptom events (per 100 patient-months),2,,,100,0.1409,0.004715633,,,gamma,PROMPT-Care trial,,SE = sqrt(event count)/person-time
 hosp_r,λ: Hospital Events (per 100 patient-months),2,,,100,0.0566,0.001307999,,,gamma,PROMPT-Care trial,,SE = sqrt(event count)/person-time
 amb_r,λ: Ambulance (round trips per 100 patient-months),2,,,100,0.0183,0.005516249,,,gamma,Sentinel trial,,SE = sqrt(event count)/person-time
-hosp_hr,Hazard Ratio: Hospital Events,2,,,1,0.87,0.06,0.77,0.98,beta,Sentinel trial,,cannot exceed 1 in the model
+hosp_hr,Hazard Ratio: Hospital Events,2,,,1,0.87,0.06,0.77,0.98,lognormal,Sentinel trial,,
 death_hr,Hazard Ratio: Death,2,,,1,0.32,0.38,0.15,0.67,lognormal,Sentinel trial,,
 amb_hr,Hazard Ratio: Ambulance (round trips),2,,,1,0.17,,0.04,0.78,beta,Sentinel trial,,0.77 breaks the beta distribution
 h_u,Health Utility (Usual Care),2,,,1,0.8,0.01,0.77,0.82,beta,STAR trial,,

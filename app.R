@@ -1045,7 +1045,15 @@ cep_f <- function(
   psa_p <- psa_dt %>% ggplot(aes(
     x = QALYs, y = Costs, text = ICER_s, colour = Run, fill = Run,
     shape = Run, size = Run)) + ggtitle("ePROM monitoring is:") + 
-    theme_bw() + geom_point() + 
+    theme_bw() + 
+    
+    # WTP range
+    geom_polygon(
+      data = band_dt, aes(x = x, y = y, text = wtp_s),
+      fill = "black", alpha = 0.1, inherit.aes = F) +
+    
+    # Scatter Plot
+    geom_point() + 
     
     # Colour scales and formatting etc.
     scale_fill_manual(values = c(alpha(pal_m[1,2],0.1), pal_m[1,4])) + 
@@ -1060,11 +1068,6 @@ cep_f <- function(
     geom_vline(xintercept = 0, linetype = "dashed", linewidth = 1/5) +
     scale_y_continuous(labels = tocurr_f) + 
     labs(x = "ΔQALYs", y = "ΔCosts" ) + 
-    
-    # WTP range
-    geom_polygon(
-      data = band_dt, aes(x = x, y = y, text = wtp_s),
-      fill = "black", alpha = 0.1, inherit.aes = F) +
     
     # Text & labels
     geom_text(
@@ -1317,6 +1320,13 @@ chunk_n <- 1 # global chunk tracker for markdown
 ui <- {page_navbar(
   id = "MainPage",
   
+  tags$head(
+    tags$script(HTML("
+      $(document).on('shiny:connected', function() {
+        $('a[href^=\"http\"]').attr('target', '_blank');
+      });
+    "))),
+  
   ### THEME & TITLES -----------------------------------------------------------
   
   theme = bs_theme(
@@ -1420,7 +1430,8 @@ ui <- {page_navbar(
           nav_panel(
             "PSA", p(""), md_f(),
             plotlyOutput("CEP") %>% withSpinner(color = pal_m[1, 2]), md_f(),
-            plotOutput("WTP") %>% withSpinner(color = pal_m[1, 2])),
+            plotOutput("WTP") %>% fullscreen_this() %>% 
+              withSpinner(color = pal_m[1, 2])),
           nav_panel(
             "OWSA", p(""), md_f(),
             plotOutput("OWSA")  %>% fullscreen_this() 
@@ -1624,7 +1635,7 @@ server <- function(input, output, session) {
         "owsa" = owsa_r()
       )
       
-      print(params)
+      # print(params)
 
       rmarkdown::render(
         "UI text/report.Rmd",
